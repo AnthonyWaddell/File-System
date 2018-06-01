@@ -20,6 +20,7 @@ public class SuperBlock
    public int freeList;    // the block number of the free list's head
    private final static int MAX_INODES = 64;	// Max number of INodes/files
    private final static int MAX_BLOCKS = 1000;	// Max number of blocks
+   private final static int FALSE = -1;
    
    //--------------------------------------------------------------------------
    // Basic constructor
@@ -87,12 +88,61 @@ public class SuperBlock
 		sync();								 // Now sync, create new superblock
 	}
 	
-
-	
-	
-	
-	
-	
+	//-------------------------------------------------------------------------
+	// Return a block to the freeList
+	//-------------------------------------------------------------------------
+	public boolean returnBlock(int blockId)
+	{
+		boolean ret_val = true;
+		// Check to make sure valid
+		if(blockId < 0)
+		{
+			ret_val = false;
+			return ret_val;
+		}
+		// If valid
+		else
+		{
+			// Buffer to copy data to
+			byte[] databuf = new byte[Disk.blockSize];
+			for(int i = 0; i < Disk.blockSize; i++)
+			{
+				// Zero initialize the buffer
+				databuf[i] = (byte)0;
+			}
+			SysLib.int2bytes(freeList, databuf, 0);
+			// Write back data from the returned block
+			SysLib.rawwrite(blockId, databuf);
+			// Next freeList is returned block
+			freeList = blockId;
+			return ret_val;
+		}
+	}
+	//-------------------------------------------------------------------------
+	// Get a free block from the freeList
+	//-------------------------------------------------------------------------
+	public short getBlock()
+	{
+		// Get the current head index of the freeList
+		short head_index = (short)freeList;
+		// Check if valid or if there are free blocks
+		if(head_index  < 0 || head_index > totalBlocks)
+		{
+			return FALSE;
+		}
+		// Create buffer to read in data 
+		byte[] databuf = new byte[Disk.blockSize];
+		// Read content of freeList block
+		SysLib.rawread(freeList, databuf);
+		// Reposition head index of free_list
+		freeList = SysLib.bytes2int(databuf, 0);
+		// Wipe the file 
+		SysLib.int2bytes(0, databuf, 0);
+		// Write back 
+		SysLib.rawwrite(head_index, databuf);
+		// Return the index of the index of the free Block
+		return head_index;
+	}
 	
 	
 }
