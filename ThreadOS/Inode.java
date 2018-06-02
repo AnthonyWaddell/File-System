@@ -100,4 +100,23 @@ public class Inode
 	   // Not sure how this could go wrong or if we should just make void
 	   return ret_val;
    }
+	
+   //--------------------------------------------------------------------------
+   // Looks for block pointed to by seekPtr
+   //--------------------------------------------------------------------------
+   public short getIdFromSeekPointer(int seekPtr)
+   {
+	   short doesnt_real  = -1;
+	   // Attempt to get the block id
+	   int id = (seekPtr / Disk.blockSize);
+	   // If it exists, return it
+	   if(seekPtr < (direct.length * Disk.blockSize))
+	   {
+		   return short(id);
+	   }
+	   else
+	   {
+		return doesnt_real;   
+	   }
+   }
 }
