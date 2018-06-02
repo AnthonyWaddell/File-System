@@ -11,7 +11,7 @@ public class FileTable {
     
     public synchronized FileTableEntry falloc( String filename, String mode) {
         // Allocate an Inode number for the passed filename.
-        int iNumber = dir.ialloc(filename);
+        short iNumber = dir.ialloc(filename);
         // Instantiate a new Inode instance to repersent the Inode on disk.
         Inode newNode = new Inode();
         // The FileTableEntry of the file.
@@ -20,7 +20,7 @@ public class FileTable {
         // If the Inode on disk isn't being accessed by any other threads, then:
         if(newNode.count == 0) {
             // Indicate the file is being accessed.
-            newNode.flag = true;
+            newNode.flag = 1;
         }
         // Update the amount of threads accessing the file.
         newNode.count++;
@@ -41,14 +41,14 @@ public class FileTable {
         int index = -1;
 
         // Update the amount of threads accessing the file.
-        e.Inode.count--;
+        e.inode.count--;
         // If there are no threads accessing the file, then:
-        if(e.Inode.count == 0) {
+        if(e.inode.count == 0) {
             // Indicate the file is NOT being accessed.
-            e.Inode.flag = false;
+            e.inode.flag = 0;
         }
         // Write the representation of the Inode to disk version.
-        e.Inode.toDisk(e.iNumber);
+        e.inode.toDisk(e.iNumber);
         
         // If the given FileTableEntry is in the file table, then:
         if((index = table.indexOf(e)) > 0) {

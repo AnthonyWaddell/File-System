@@ -43,6 +43,10 @@ public class SuperBlock
 	    }
     }
    
+    public int getMax_INodes() {
+        return MAX_INODES;
+    }
+    
     //-------------------------------------------------------------------------
 	// Sync to disk by writing back the total number of disk blocks, inodes, 
 	// and the freeList
