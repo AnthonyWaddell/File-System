@@ -156,7 +156,7 @@ public class FileSystem
 				// Shift where we are reading, how far we have read, and how much room we have left
 				// by the amount we have read
 				ftEnt.seekPtr += readCount;
-				ret_val +- readCount;
+				ret_val += readCount;
 				entry_size -= readCount;
 			
 			}
