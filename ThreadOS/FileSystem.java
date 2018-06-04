@@ -186,6 +186,7 @@ public class FileSystem
 		{
 			
 		}
+	    return 0; // broken return statement
     }
     
     //-------------------------------------------------------------------------
