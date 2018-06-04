@@ -23,7 +23,7 @@ public class FileSystem
     {
         superblock = new SuperBlock( diskblocks );
         
-        directory = new Directory( superblock.getMax_INodes() );
+        directory = new Directory( superblock.totalInodes );
         
         filetable = new FileTable( directory );
         
@@ -70,7 +70,7 @@ public class FileSystem
     }
     
     //-------------------------------------------------------------------------
-    //
+    // Open a file
     //-------------------------------------------------------------------------
     public FileTableEntry open(String filename, String mode)
     {
@@ -79,77 +79,172 @@ public class FileSystem
     }
 
     //-------------------------------------------------------------------------
-    //
+    // Close file relevant to FileTableEntry ftEnt. 
     //-------------------------------------------------------------------------
-    public boolean close(FileTableEntry ftEnt)
+    public synchronized boolean close(FileTableEntry ftEnt)
     {
-        return false;
+		boolean ret_val = true;
+		// One less thread accessing file
+        ftEnt.count--;
+		// If no other thread is accessing this entry
+		if(ftEnt.count == 0)
+		{
+			// Remove the entry from the file table
+			ret_val = filetable.ffree(ftEnt);
+			return ret_val;
+		}
+		return true;
     }
     //-------------------------------------------------------------------------
-    //
+    // Get the size of file as contained in the file table entry
     //-------------------------------------------------------------------------
-    public int fsize( FileTableEntry ftEnt ) 
+    public synchronized int fsize( FileTableEntry ftEnt ) 
     {
         return ftEnt.inode.length;
     }
     
     //-------------------------------------------------------------------------
-    //
+    // Reads if passed in the right mode. If block is valid, will read from 
+	// block. Reads in loops based on the remaining size of the buffer. 
     //-------------------------------------------------------------------------
     public int read(FileTableEntry ftEnt, byte[] buffer) 
     {
         int entry_size = fsize(ftEnt);
         int buf_length = buffer.length;
         int readCount = 0;
+		int ret_val = 0;
         int blockCount;
+		int remainingBlocks;
 
         // Entry mode should only be "r" for read
         if(ftEnt.mode.toLowerCase() == "w" || ftEnt.mode.toLowerCase() == "a" || ftEnt.mode == "w+")
         {
-            return -1;
+			// Return -1 for error
+            return FALSE;
         }
-        // Begining at 0, start reading 
-        while(ftEnt.seekPtr < entry_size && buf_length > 0)
-        {
-            // Figure out block to read from
-            int readBlock = ftEnt.inode.getIdFromSeekPointer(ftEnt.seekPtr);
-            // Validity check
-            if(readBlock == -1)
-            {
-                return FALSE;
-            }
-            // Load up a buffer to read into
-            byte[] readbuf = new byte[Disk.blockSize];
-            SysLib.rawread(readBlock, readbuf);
-            // Get the offset into the data
-            int beginning = (ftEnt.seekPtr % Disk.blockSize);
-            blockCount = Disk.blockSize - readCount;
-
-
-            // keep whittling away at reading blocks, will firgure rest out later
-        }
+		synchronized(ftEnt)
+		{
+			// Start reading 
+			while(ftEnt.seekPtr < entry_size && buf_length > 0)
+			{
+				// Figure out block to read from
+				int readBlock = ftEnt.inode.getIdFromSeekPointer(ftEnt.seekPtr);
+				// Validity check, exit check
+				if(readBlock == -1)
+				{
+					break;
+				}
+				
+				// First, Spin up a buffer to read into
+				byte[] readbuf = new byte[Disk.blockSize];
+				SysLib.rawread(readBlock, readbuf);
+				
+				// Next, get the offset into the data block
+				int beginning = (ftEnt.seekPtr % Disk.blockSize);
+				blockCount = (Disk.blockSize - readCount);
+				remainingBlocks = (fsize(ftEnt) - ftEnt.seekPtr);
+				
+				// Amount read should be less than the size of the file, the size of the block
+				// we are reading into, and what's left in buffer space
+				readCount = blockCount < remainingBlocks ? blockCount : remainingBlocks;
+				if(buf_length < readCount)
+				{
+					readCount = buf_length;
+				}
+				System.arraycopy(readbuf, beginning, buffer, ret_val, readCount);
+				
+				// Shift where we are reading, how far we have read, and how much room we have left
+				// by the amount we have read
+				ftEnt.seekPtr += readCount;
+				ret_val +- readCount;
+				entry_size -= readCount;
+			
+			}
+			//when finished reading
+			return ret_val;
+		}
     }
     
     //-------------------------------------------------------------------------
-    //
+    // Writes from the buffer to the file entry. Starts with seekptr and as 
+	// bytes are written will update the seekptr of the file table entry.
     //-------------------------------------------------------------------------
     public int write( FileTableEntry ftEnt, byte[] buffer) 
     {
-        return -1;
+		int entry_size = fsize(ftEnt);
+		int write_bytes = 0;
+		int buf_length = buffer.length;
+		
+		// Fail if mode is read pls
+        if(ftEnt.mode.toLowerCase() == "r")
+		{
+			return FALSE;
+		}
+		
+		// Lock this up pls
+		synchronized(ftEnt)
+		{
+			
+		}
     }
     
     //-------------------------------------------------------------------------
     //
     //-------------------------------------------------------------------------
-    private boolean deallocAllBlocks( FileTableEntry ftEnt ) 
+    private boolean deallocAllBlocks(FileTableEntry ftEnt) 
     {
-        return false;
+		boolean ret_val = true;
+		// Get the number of direct blocks
+		//int ft_direct_size = ftEnt.inode.directSize;
+		// Allocate data buffer for data pointed to by indirect block
+		byte[] databuf = new byte[Disk.blockSize];
+		short blockCounter = 0;
+		
+		// Loop over direct blocks
+		for(int i = 0; i < ftEnt.inode.directSize; i++)
+		{
+			// If they contain anything
+			if(ftEnt.inode.direct[i] != FALSE)
+			{
+				// Return that block to free list
+				superblock.returnBlock(i);
+				// And set the inode direct block back to -1
+				ftEnt.inode.direct[i] = FALSE;
+			}
+		}
+		
+		// Now check the indirect block
+		if(ftEnt.inode.indirect >= 0)
+		{
+			// If it is being used, read the data into a buffer
+			SysLib.rawread(ftEnt.inode.indirect, databuf);
+			// and set indirect back to -1
+			ftEnt.inode.indirect = FALSE;
+		}
+		// While there is data to return
+		do
+		{
+			// Get data as short
+			blockCounter = SysLib.bytes2short(databuf, 0);
+			if(blockCounter != FALSE)
+			{
+				// Return that block to free list
+				superblock.returnBlock(blockCounter);
+			}
+			
+		}while(blockCounter != FALSE);
+		
+		// When finished, write back to disk
+		ftEnt.inode.toDisk((short)ftEnt.iNumber);
+		
+        return ret_val;
     }
     
     //-------------------------------------------------------------------------
-    //
+    // Once we get write handled, probably just all open on a new ftEnt, 
+	// have directory call ifree on that ftEnt's inumber and close the file. boom
     //-------------------------------------------------------------------------
-    int delete(String filename) 
+    public synchronized int delete(String filename) 
     {
         short fileINumber = directory.namei(filename);
        
