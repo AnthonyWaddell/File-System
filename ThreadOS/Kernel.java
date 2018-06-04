@@ -155,7 +155,10 @@ public class Kernel
                         System.out.println( "threaOS: caused read errors" );
                         return ERROR;
                   }
-                  // return FileSystem.read( param, byte args[] );
+                  Object[] readArgsAsObjArray = (Object[])args;
+                  if ( ( myTcb = scheduler.getMyTcb( ) ) != null ) {
+                    return filesystem.read(myTcb.getFtEnt((int)readArgsAsObjArray[0]), (byte[])readArgsAsObjArray[1] );
+                  }
                   return ERROR;
                case WRITE:
                   switch ( param ) {
@@ -181,19 +184,27 @@ public class Kernel
                   cache.flush( );
                   return OK;
                case OPEN:    // to be implemented in project
-                  String[] argsAsStrings = (String[])args;
-                  FileTableEntry entry = filesystem.open(argsAsStrings[0], argsAsStrings[1]);
-                  return myTcb.getFd(entry);
+                  String[] openArgsAsStrings = (String[])args;
+                  if ( ( myTcb = scheduler.getMyTcb( ) ) != null ) {
+                    FileTableEntry entry = filesystem.open(openArgsAsStrings[0], openArgsAsStrings[1]);
+                    return myTcb.getFd(entry);
+                  }
                case CLOSE:   // to be implemented in project
-                  return filesystem.close((FileTableEntry)args) == true ? 0 : -1;
+                   if ( ( myTcb = scheduler.getMyTcb( ) ) != null ) {
+                    return filesystem.close(myTcb.getFtEnt((int)args)) == true ? 0 : -1;
+                   }
                case SIZE:    // to be implemented in project
-                  return filesystem.fsize((FileTableEntry)args);
+                   if ( ( myTcb = scheduler.getMyTcb( ) ) != null ) {
+                    return filesystem.fsize(myTcb.getFtEnt((int)args));
+                   }
                case SEEK:    // to be implemented in project
                   Object[] argsAsObjArray = (Object[])args;
                   //FileTableEntry entryArg = argsAsObjArray[0];
                   //int offsetArg = argsAsObjArray[1];
                   //int whenceArg = argsAsObjArray[2];
-                  return filesystem.seek((FileTableEntry)argsAsObjArray[0], (int)argsAsObjArray[1], (int)argsAsObjArray[2]);
+                  if ( ( myTcb = scheduler.getMyTcb( ) ) != null ) {
+                    return filesystem.seek(myTcb.getFtEnt((int)argsAsObjArray[0]), (int)argsAsObjArray[1], (int)argsAsObjArray[2]);
+                  }
                case FORMAT:  // to be implemented in project
                   return filesystem.format((int)args) == true ? 0 : -1;
                case DELETE:  // to be implemented in project
