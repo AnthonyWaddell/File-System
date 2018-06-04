@@ -112,7 +112,7 @@ public class Inode
 	   // If it exists, return it
 	   if(seekPtr < (direct.length * Disk.blockSize))
 	   {
-		   return short(id);
+		   return (short)id;
 	   }
 	   else
 	   {
