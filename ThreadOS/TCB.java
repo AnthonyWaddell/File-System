@@ -13,11 +13,6 @@ public class TCB {
 	terminated = false;
 
 	ftEnt = new FileTableEntry[32];    // added for the file system
-	for ( int i = 0; i < 32; i++ )
-	{
-		ftEnt[i] = null;         // all entries initialized to null
-	}
-         // fd[0], fd[1], and fd[2] are kept null.
 
 	System.err.println( "threadOS: a new thread (thread=" + thread + 
 			    " tid=" + tid + 
@@ -58,7 +53,7 @@ public class TCB {
 	return -1;
     }
 
-    // added for the file system, returns int relevant to file decriptor table
+    // added for the file system
     public synchronized FileTableEntry returnFd( int fd ) {
 	if ( fd >= 3 && fd < 32 ) {
 	    FileTableEntry oldEnt = ftEnt[fd];
@@ -69,7 +64,7 @@ public class TCB {
 	    return null;
     }
 
-    // added for the file systme, returns the file table entry, 0, 1, and 2 are reserved
+    // added for the file systme
     public synchronized FileTableEntry getFtEnt( int fd ) {
 	if ( fd >= 3 && fd < 32 )
 	    return ftEnt[fd];

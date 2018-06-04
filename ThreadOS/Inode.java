@@ -12,7 +12,7 @@
 public class Inode 
 {
    private final static int iNodeSize = 32;       // fix to 32 bytes
-   public final static int directSize = 11;      // # direct pointers
+   private final static int directSize = 11;      // # direct pointers
    private final static int shortSize = 2;
    private final static int intSize = 4;
 
